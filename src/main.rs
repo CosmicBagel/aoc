@@ -1,5 +1,3 @@
-use std::{collections::HashSet, slice::Windows};
-
 use crate::helper::read_lines;
 
 mod helper;
@@ -126,7 +124,10 @@ fn p1() {
 
     let mut current_parent: usize = 0;
 
-    for line in SAMPLE_DATA.lines() {
+    // for line in SAMPLE_DATA.lines() {
+    for line_result in read_lines("day7.txt") {
+        let line = line_result.unwrap();
+
         let words: Vec<&str> = line.split(" ").collect();
         let first_word_chars: Vec<char> = words[0].chars().collect();
         let second_word_chars: Vec<char> = words[1].chars().collect();
@@ -194,5 +195,41 @@ fn p1() {
             _ => (),
         }
     }
-    tree.traverse_all();
+    // tree.traverse_all();
+
+    // recursively go down tree to leaf nodes (no children)
+    // store each dir sum in a list
+    let mut dir_size_list: Vec<u32> = Vec::new();
+    fn sum_from_node(tree: &Tree, node: usize, dir_size_list: &mut Vec<u32>) -> u32 {
+        // print this node
+        let n = &tree.nodes[node];
+        let mut children_sum = 0;
+
+        for c in &n.children {
+            match tree.nodes[*c].node_data {
+                NodeData::Directory => children_sum += sum_from_node(tree, *c, dir_size_list),
+                NodeData::File(size) => children_sum += size,
+            };
+        }
+
+        match n.node_data {
+            NodeData::Directory => dir_size_list.push(children_sum),
+            _ => {}
+        }
+
+        children_sum
+    }
+
+    let root_sum = sum_from_node(&tree, 0, &mut dir_size_list);
+    // println!("total sum {}", sum);
+    // println!("{:?}", dir_size_list);
+
+    let mut sum = 0;
+    for s in dir_size_list {
+        if s <= 100_000 {
+            sum += s;
+        }
+    }
+    println!("selective sum {}", sum);
+
 }
