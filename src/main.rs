@@ -3,7 +3,7 @@ use crate::helper::read_lines;
 mod helper;
 
 fn main() {
-    p1();
+    p2();
 }
 
 const SAMPLE_DATA: &str = "$ cd /
@@ -231,5 +231,122 @@ fn p1() {
         }
     }
     println!("selective sum {}", sum);
+}
 
+fn p2() {
+    let mut tree = Tree::new();
+
+    let mut current_parent: usize = 0;
+
+    // for line in SAMPLE_DATA.lines() {
+    for line_result in read_lines("day7.txt") {
+        let line = line_result.unwrap();
+
+        let words: Vec<&str> = line.split(" ").collect();
+        let first_word_chars: Vec<char> = words[0].chars().collect();
+        let second_word_chars: Vec<char> = words[1].chars().collect();
+        let first_word = words[0];
+        let second_word = words[1];
+
+        match first_word_chars[0] {
+            '$' => {
+                //command
+                match second_word_chars[0] {
+                    'c' => {
+                        // change directory (third word is directory name or .. to go up)
+                        let dir_name: Vec<char> = words[2].chars().collect();
+                        if dir_name.len() == 1 && dir_name[0] == '/' {
+                            current_parent = 0; // 0 is root
+                            continue;
+                        } else if dir_name.len() == 2 && dir_name[0] == '.' && dir_name[1] == '.' {
+                            match tree.nodes[current_parent].parent {
+                                Some(val) => {
+                                    current_parent = val;
+                                }
+                                None => {}
+                            }
+                            continue;
+                        }
+
+                        // dir name is a child (should already be added by previous list command)
+                        let dir_name = words[2];
+                        for n in &tree.nodes[current_parent].children {
+                            if tree.nodes[*n].node_name == dir_name {
+                                current_parent = *n;
+                                continue;
+                            }
+                        }
+                    }
+                    'l' => {
+                        // list, doesn't really matter, anything not a cd is a listing
+                    }
+                    _ => println!("unknown command: {}", second_word_chars[0]),
+                }
+            }
+            'd' => {
+                // directory listing
+
+                //check if already added as child
+
+                // doesn't exist, add as child
+                tree.add_child_to_node(
+                    NodeData::Directory,
+                    String::from(second_word),
+                    current_parent,
+                );
+            }
+            '0'..='9' => {
+                // file
+                // filename
+                let file_size: u32 = first_word.parse().unwrap();
+                tree.add_child_to_node(
+                    NodeData::File(file_size),
+                    String::from(second_word),
+                    current_parent,
+                );
+            }
+
+            _ => (),
+        }
+    }
+    // tree.traverse_all();
+
+    // recursively go down tree to leaf nodes (no children)
+    // store each dir sum in a list
+    let mut dir_size_list = Vec::new();
+    fn sum_from_node(tree: &Tree, node: usize, dir_size_list: &mut Vec<(u32, usize)>) -> u32 {
+        // print this node
+        let n = &tree.nodes[node];
+        let mut children_sum = 0;
+
+        for c in &n.children {
+            match tree.nodes[*c].node_data {
+                NodeData::Directory => children_sum += sum_from_node(tree, *c, dir_size_list),
+                NodeData::File(size) => children_sum += size,
+            };
+        }
+
+        match n.node_data {
+            NodeData::Directory => dir_size_list.push((children_sum, node)),
+            _ => {}
+        }
+
+        children_sum
+    }
+
+    let root_size = sum_from_node(&tree, 0, &mut dir_size_list);
+
+    let total_disk_space: u32 = 70_000_000;
+    let total_free_space: u32 = total_disk_space - root_size;
+    let needed_disk_space: u32 = 30_000_000 - total_free_space;
+
+    // sort increasing order of size
+    dir_size_list.sort_by(|a, b| a.0.cmp(&b.0));
+
+    for s in dir_size_list {
+        if s.0 >= needed_disk_space {
+            println!("first dir big enough: {}", s.0);
+            break;
+        }
+    }
 }
