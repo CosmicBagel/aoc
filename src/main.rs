@@ -67,6 +67,23 @@ impl Tree {
     }
 
     fn add_child_to_node(&mut self, data: NodeData, node_name: String, parent: usize) -> usize {
+        // ensure child is unique in name among children
+        // (no files or dirs can have the same name, and be siblings)
+        let mut exists = false;
+        for n in &self.nodes[parent].children {
+            if self.nodes[*n].node_name == node_name {
+                exists = true;
+            }
+        }
+        if exists {
+            panic!(
+                "sibling with same name already exists (adding: {})",
+                node_name
+            );
+        }
+
+        // node name is unique, can now add
+
         let next_index = self.nodes.len();
 
         let n = Node {
@@ -107,43 +124,75 @@ impl Tree {
 fn p1() {
     let mut tree = Tree::new();
 
-    let poop_node = tree.add_child_to_node(NodeData::File(1000), String::from("poop"), 0);
-
     let mut current_parent: usize = 0;
 
     for line in SAMPLE_DATA.lines() {
         let words: Vec<&str> = line.split(" ").collect();
-        let second_word: Vec<char> = words[1].chars().collect();
-        let first_word: Vec<char> = words[0].chars().collect();
+        let first_word_chars: Vec<char> = words[0].chars().collect();
+        let second_word_chars: Vec<char> = words[1].chars().collect();
+        let first_word = words[0];
+        let second_word = words[1];
 
-        match first_word[0] {
+        match first_word_chars[0] {
             '$' => {
                 //command
-                match second_word[0] {
+                match second_word_chars[0] {
                     'c' => {
                         // change directory (third word is directory name or .. to go up)
-                        let dir_name: Vec<char> = words[2].chars().collect(); 
+                        let dir_name: Vec<char> = words[2].chars().collect();
                         if dir_name.len() == 1 && dir_name[0] == '/' {
-                            continue; // skip the initial cd 
+                            current_parent = 0; // 0 is root
+                            continue;
                         } else if dir_name.len() == 2 && dir_name[0] == '.' && dir_name[1] == '.' {
-                            current_parent = tree.nodes[current_parent].parent.unwrap();
+                            match tree.nodes[current_parent].parent {
+                                Some(val) => {
+                                    current_parent = val;
+                                }
+                                None => {}
+                            }
+                            continue;
                         }
-                        // 
+
+                        // dir name is a child (should already be added by previous list command)
+                        let dir_name = words[2];
+                        for n in &tree.nodes[current_parent].children {
+                            if tree.nodes[*n].node_name == dir_name {
+                                current_parent = *n;
+                                continue;
+                            }
+                        }
                     }
                     'l' => {
                         // list, doesn't really matter, anything not a cd is a listing
                     }
-                    _ => println!("unknown command: {}", second_word[0])
+                    _ => println!("unknown command: {}", second_word_chars[0]),
                 }
             }
             'd' => {
                 // directory listing
+
+                //check if already added as child
+
+                // doesn't exist, add as child
+                tree.add_child_to_node(
+                    NodeData::Directory,
+                    String::from(second_word),
+                    current_parent,
+                );
             }
             '0'..='9' => {
                 // file
                 // filename
+                let file_size: u32 = first_word.parse().unwrap();
+                tree.add_child_to_node(
+                    NodeData::File(file_size),
+                    String::from(second_word),
+                    current_parent,
+                );
             }
+
             _ => (),
         }
     }
+    tree.traverse_all();
 }
