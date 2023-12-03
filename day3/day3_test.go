@@ -1,4 +1,4 @@
-package adventofcode2023golang
+package day3
 
 import(
     "testing"
