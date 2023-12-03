@@ -210,7 +210,7 @@ func Day3P2() {
 		log.Fatal(err)
 	}
 
-	gear_map = make(map[Point]int);
+	gear_map = make(map[Point][]int)
 
 	// file_name := "example_input.txt"
 	file_name := "input.txt"
@@ -232,7 +232,7 @@ func Day3P2() {
 	scanner.Scan()
 	below_line := scanner.Text()
 	//process
-	sum += p2ProcessLine(line_num, above_line, current_line, below_line)
+	p2ProcessLine(line_num, above_line, current_line, below_line)
 
 	for scanner.Scan() {
 		above_line = current_line
@@ -241,7 +241,7 @@ func Day3P2() {
 		line_num++
 
 		//process
-		sum += p2ProcessLine(line_num, above_line, current_line, below_line)
+		p2ProcessLine(line_num, above_line, current_line, below_line)
 	}
 
 	above_line = current_line
@@ -250,20 +250,25 @@ func Day3P2() {
 	line_num++
 
 	//process
-	sum += p2ProcessLine(line_num, above_line, current_line, below_line)
+	p2ProcessLine(line_num, above_line, current_line, below_line)
+
+	for _, nums := range gear_map {
+		if len(nums) == 2 {
+			sum += nums[0] * nums[1]
+		}
+	}
 
 	println(sum)
 }
 
 type Point struct {
-	line int;
-	ind int;
+	line int
+	ind  int
 }
-var gear_map map[Point]int;
 
+var gear_map map[Point][]int
 
-func p2ProcessLine(line_num int, above_line string, current_line string, below_line string) int {
-	sum := 0
+func p2ProcessLine(line_num int, above_line string, current_line string, below_line string) {
 	isAboveEmpty := len(above_line) == 0
 	isBelowEmpty := len(below_line) == 0
 
@@ -282,103 +287,92 @@ func p2ProcessLine(line_num int, above_line string, current_line string, below_l
 	num_indices := num_re.FindAllStringIndex(current_line, -1)
 
 	for _, inds := range num_indices {
-		// println("A")
 		left := inds[0]
 		right := inds[1]
 
-		partCount := 0
-
-		// println("B")
-		isSymbol := func(c byte) bool {
+		isGear := func(c byte) bool {
 			// not a number and not period
-			b := (c < 48 || c > 57) && c != '.'
+			b := c == '*'
 			// if b {
 			// 	fmt.Printf("%s ", string(c))
 			// }
 			return b
 		}
 
+		getNumber := func() int {
+			num, err := strconv.Atoi(current_line[left:right])
+			if err != nil {
+				log.Fatal(err)
+			}
+			return num
+		}
+
+		gearAddNumber := func(p Point) {
+			val, ok := gear_map[p]
+			if !ok {
+				val = make([]int, 0)
+				gear_map[p] = val
+			}
+			gear_map[p] = append(val, getNumber())
+		}
+
+		processChar := func(c byte, i int, line int) {
+			if isGear(c) {
+				p := Point{line, i}
+				gearAddNumber(p)
+			}
+		}
+
 		// vertical up checks
 		if !isAboveEmpty {
 			for i := left; i < right; i++ {
 				c := above_line[i]
-				if isSymbol(c) {
-					partCount += 1
-				}
+				processChar(c, i, line_num-1)
 			}
 		}
-
-		// println("C")
 
 		// vertical down checks
 		if !isBelowEmpty {
 			for i := left; i < right; i++ {
 				c := below_line[i]
-				if isSymbol(c) {
-					partCount += 1
-				}
+				processChar(c, i, line_num+1)
 			}
 		}
 
 		// horizontal left right checks
 		if left > 0 {
 			c := current_line[left-1]
-			if isSymbol(c) {
-				partCount += 1
-			}
+			processChar(c, left-1, line_num)
 		}
 		if right < len(current_line) {
 			c := current_line[right]
-			if isSymbol(c) {
-				partCount += 1
-			}
+			processChar(c, right, line_num)
+
 		}
 
-		// println("D")
 		// above diagonal checks
 		if left > 0 && !isAboveEmpty {
 			c := above_line[left-1]
-			if isSymbol(c) {
-				partCount += 1
-			}
+			processChar(c, left-1, line_num-1)
 		}
-		// println("E")
 
 		if right < len(current_line) && !isAboveEmpty {
 			c := above_line[right]
-			if isSymbol(c) {
-				partCount += 1
-			}
+			processChar(c, right, line_num-1)
 		}
 
-		// println("F")
 		// below diagonal checks
 		if left > 0 && !isBelowEmpty {
 			c := below_line[left-1]
-			if isSymbol(c) {
-				partCount += 1
-			}
+			processChar(c, left-1, line_num+1)
 		}
 
-		// println("G")
 		if right < len(current_line) && !isBelowEmpty {
 			c := below_line[right]
-			if isSymbol(c) {
-				partCount += 1
-			}
-		}
-
-		// println("H")
-		if partCount > 0 {
-			num, err := strconv.Atoi(current_line[left:right])
-			if err != nil {
-				log.Fatal(err)
-			}
-			// fmt.Printf("%d %d\n", num, partCount)
-			sum += num * partCount
+			processChar(c, right, line_num+1)
 		}
 
 	}
 
-	return sum
+	return
 }
