@@ -20,10 +20,10 @@ type IdMap struct {
 	spread      int // range
 }
 
-type DataSet int
+type DataSetKey int
 
 const (
-	seedToSoil DataSet = iota
+	seedToSoil DataSetKey = iota
 	soilToFertilizer
 	fertilizerToWater
 	waterToLight
@@ -34,8 +34,8 @@ const (
 
 func Day5P1() {
 	fmt.Println("day 5 p 1")
-	file_name := "example_input.txt"
-	// file_name := "input.txt"
+	// file_name := "example_input.txt"
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -45,19 +45,69 @@ func Day5P1() {
 
 	scanner := bufio.NewScanner(file)
 
-	seeds, dataMap := parseInput(scanner)
+	seeds, dataMap := parseInputP1(scanner)
 
 	// process to lowest location that corresponds with *any* of the seed numbers
+	lowestLocation := processSeedsAndMapsP1(seeds, dataMap)
 
-	fmt.Printf("%+v\n%+v\n", seeds, dataMap)
+	fmt.Printf("%+v\n", lowestLocation)
 }
 
-func parseInput(scanner *bufio.Scanner) ([]int, map[DataSet][]IdMap) {
-	dataMap := make(map[DataSet][]IdMap)
+func processSeedsAndMapsP1(seeds []int, maps map[DataSetKey][]IdMap) int {
+	lowestLocation := 2147483647
+
+	allDataSetKeys := []DataSetKey{seedToSoil, soilToFertilizer, fertilizerToWater, waterToLight,
+		lightToTemperature, temperatureToHumidity, humidityToLocation}
+
+	for _, seed := range seeds {
+
+		currentId := seed
+		// fmt.Println(currentId)
+		for _, key := range allDataSetKeys {
+			// fmt.Printf("\t%v\n", key)
+			var foundIdMap IdMap
+			found := false
+			// is id within any of this data set's maps
+			for _, idMap := range maps[key] {
+				if idMap.source <= currentId && idMap.source+idMap.spread >= currentId {
+					foundIdMap = idMap
+					found = true
+					// fmt.Printf("\t\tcurrentId %v\n", currentId)
+					// fmt.Printf("\t\tfound %+v\n", foundIdMap)
+					break
+				}
+			}
+
+			// if !found {
+			// 	fmt.Printf("\t\tcurrentId %v\n", currentId)
+			// 	fmt.Printf("\t\tnot found\n")
+			// }
+
+			if found {
+				// minVal := min(foundIdMap.source, foundIdMap.destination)
+				offset := currentId - foundIdMap.source
+				destination := foundIdMap.destination + offset
+				currentId = destination
+				// fmt.Printf("\t\tresultId %v\n", destination)
+			}
+
+			// if no map, id maps as is, no change to currentId
+		}
+
+		if currentId < lowestLocation {
+			lowestLocation = currentId
+		}
+	}
+
+	return lowestLocation
+}
+
+func parseInputP1(scanner *bufio.Scanner) ([]int, map[DataSetKey][]IdMap) {
+	dataMap := make(map[DataSetKey][]IdMap)
 	seeds := make([]int, 0)
 
-	headingToDataSet := func(s string) DataSet {
-		var d DataSet
+	headingToDataSet := func(s string) DataSetKey {
+		var d DataSetKey
 		switch s {
 		case "seed-to-soil":
 			d = seedToSoil
@@ -91,7 +141,7 @@ func parseInput(scanner *bufio.Scanner) ([]int, map[DataSet][]IdMap) {
 		seeds = append(seeds, num)
 	}
 
-	var currentDataSet DataSet
+	var currentDataSet DataSetKey
 	headerMode := false
 	for scanner.Scan() {
 		s := scanner.Text()
