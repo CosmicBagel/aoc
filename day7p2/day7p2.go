@@ -19,7 +19,8 @@ type Hand struct {
 }
 
 const (
-	C2 Card = iota
+	Joker Card = iota
+	C2
 	C3
 	C4
 	C5
@@ -28,7 +29,6 @@ const (
 	C8
 	C9
 	C10
-	Jack
 	Queen
 	King
 	Ace
@@ -75,8 +75,9 @@ func (h Hands) Less(i, j int) bool {
 
 func Day7P2() {
 	fmt.Println("day 7 p 2")
-	file_name := "example_input.txt"
-	// file_name := "input.txt"
+	fmt.Println("253945077 is too high!")
+	// file_name := "example_input.txt"
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -94,7 +95,7 @@ func Day7P2() {
 	// }
 
 	for scanner.Scan() {
-		hands = append(hands, parseP1(scanner.Text()))
+		hands = append(hands, parse(scanner.Text()))
 	}
 	// printHands()
 	sort.Sort(hands)
@@ -110,7 +111,7 @@ func Day7P2() {
 	fmt.Printf("total value: %d\n", sum)
 }
 
-func parseP1(s string) Hand {
+func parse(s string) Hand {
 	hand := Hand{}
 
 	split := strings.Split(s, " ")
@@ -118,7 +119,7 @@ func parseP1(s string) Hand {
 	// cards
 	for i, r := range split[0] {
 		if r >= 50 && r <= 57 {
-			hand.cards[i] = Card(r - 50)
+			hand.cards[i] = Card(r - 50 + 1) //+1 offset for joker
 			continue
 		}
 
@@ -126,7 +127,7 @@ func parseP1(s string) Hand {
 		case 'T':
 			hand.cards[i] = C10
 		case 'J':
-			hand.cards[i] = Jack
+			hand.cards[i] = Joker
 		case 'Q':
 			hand.cards[i] = Queen
 		case 'K':
@@ -156,13 +157,19 @@ func calcHandType(cards [5]Card) HandType {
 	isThreeOfAKind := false
 
 	counts := map[Card]int{}
+	jokerCount := 0
 	for _, c := range cards {
+		if c == Joker {
+			jokerCount += 1
+			continue
+		}
 		if _, ok := counts[c]; !ok {
 			counts[c] = 0
 		}
 		counts[c] += 1
 	}
 	// fmt.Printf("\tcounts: %+v\n", counts)
+	// fmt.Printf("\tjoker count: %+v\n", jokerCount)
 
 	for k := range counts {
 		n := counts[k]
@@ -172,6 +179,9 @@ func calcHandType(cards [5]Card) HandType {
 		case 3:
 			isThreeOfAKind = true
 		case 4:
+			if jokerCount > 0 {
+				return FiveOfAKind
+			}
 			return FourOfAKind
 		case 5:
 			return FiveOfAKind
@@ -184,16 +194,50 @@ func calcHandType(cards [5]Card) HandType {
 		if pairs > 0 {
 			return FullHouse
 		} else {
-			return ThreeOfAKind
+			switch jokerCount {
+			case 0:
+				return ThreeOfAKind
+			case 1:
+				return FourOfAKind
+			case 2:
+				return FiveOfAKind
+			}
 		}
 	}
 
 	if pairs == 2 {
-		return TwoPair
+		switch jokerCount {
+		case 0:
+			return TwoPair
+		case 1:
+			return FullHouse
+		}
 	}
 
 	if pairs == 1 {
+		switch jokerCount {
+		case 0:
+			return OnePair
+		case 1:
+			return ThreeOfAKind
+		case 2:
+			return FourOfAKind
+		case 3:
+			return FiveOfAKind
+		}
+	}
+
+	switch jokerCount {
+	case 0:
+		return HighCard
+	case 1:
 		return OnePair
+	case 2:
+		return ThreeOfAKind
+	case 3:
+		return FourOfAKind
+	case 4:
+		return FiveOfAKind
 	}
 
 	return HighCard
