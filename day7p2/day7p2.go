@@ -78,6 +78,7 @@ func Day7P2() {
 	fmt.Println("253945077 is too high!")
 	// file_name := "example_input.txt"
 	file_name := "input.txt"
+	// file_name := "test_input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -98,7 +99,7 @@ func Day7P2() {
 		hands = append(hands, parse(scanner.Text()))
 	}
 	// printHands()
-	sort.Sort(hands)
+	sort.Sort(hands) // sorts ascending (lowest first)
 
 	sum := 0
 	for i, h := range hands {
@@ -238,7 +239,11 @@ func calcHandType(cards [5]Card) HandType {
 		return FourOfAKind
 	case 4:
 		return FiveOfAKind
+	case 5: 
+		return FiveOfAKind
 	}
 
+	// println("wtf")
+	// log.Fatalf("wtf jokerCount %d", jokerCount)
 	return HighCard
 }
