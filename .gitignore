@@ -19,3 +19,8 @@
 
 # Go workspace file
 go.work
+
+
+
+# misc Binaries
+day8p2/day8p2
