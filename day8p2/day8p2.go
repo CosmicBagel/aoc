@@ -24,20 +24,17 @@ const (
 )
 
 type Node struct {
-	label    string
+	label    string // just in case for debugging
 	category NodeCategory
 	left     *Node
 	right    *Node
 }
 
-type NodeGraph struct {
-	root Node
-}
-
-func Day8P1() {
-	fmt.Println("day 8 p 1")
+func Day8P2() {
+	fmt.Println("day 8 p 2")
 	// file_name := "example_inputA.txt" //should require 2 steps
 	// file_name := "example_inputB.txt" //should require 6 steps
+	// file_name := "example_inputC.txt" //should require 6 steps
 	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
@@ -51,7 +48,7 @@ func Day8P1() {
 	//first line is instructions
 	scanner.Scan()
 	firstLine := scanner.Text()
-	instructions := parseInstructionsP1(firstLine)
+	instructions := parseInstructionsP2(firstLine)
 
 	// empty line
 	scanner.Scan()
@@ -60,23 +57,34 @@ func Day8P1() {
 	}
 
 	//all following lines are the nodes
-	graph := parseNodesP1(scanner)
+	currentNodes := parseNodesP2(scanner)
 
 	//follow instructions along graph starting from root node
 	count := 0
 	instructionCount := len(instructions)
 	instructionPos := 0
-	node := graph.root
-	for node.category != End {
-		ins := instructions[instructionPos]
 
-		switch ins {
-		case L:
-			node = *node.left
-		case R:
-			node = *node.right
+	areNodesDone := func() bool {
+		done := true
+		for _, n := range currentNodes {
+			if n.category != End {
+				done = false
+				break
+			}
 		}
+		return done
+	}
 
+	for !areNodesDone() {
+		ins := instructions[instructionPos]
+		for i, node := range currentNodes {
+			switch ins {
+			case L:
+				currentNodes[i] = node.left
+			case R:
+				currentNodes[i] = node.right
+			}
+		}
 		count += 1
 		instructionPos = (instructionPos + 1) % instructionCount
 	}
@@ -84,7 +92,7 @@ func Day8P1() {
 	fmt.Printf("step count: %d\n", count)
 }
 
-func parseInstructionsP1(firstLine string) []Direction {
+func parseInstructionsP2(firstLine string) []Direction {
 	dirs := make([]Direction, 0)
 
 	for _, r := range firstLine {
@@ -99,8 +107,8 @@ func parseInstructionsP1(firstLine string) []Direction {
 	return dirs
 }
 
-func parseNodesP1(scanner *bufio.Scanner) NodeGraph {
-	graph := NodeGraph{}
+func parseNodesP2(scanner *bufio.Scanner) []*Node {
+	startingNodes := make([]*Node, 0)
 
 	nodeMap := make(map[string]*Node)
 	getNode := func(label string) *Node {
@@ -128,10 +136,10 @@ func parseNodesP1(scanner *bufio.Scanner) NodeGraph {
 		rightDest := strings.Trim(splitB[1], "()")
 
 		category := Normal
-		if label == "AAA" {
+		if label[len(label)-1] == 'A' {
 			category = Beginning
 		}
-		if label == "ZZZ" {
+		if label[len(label)-1] == 'Z' {
 			category = End
 		}
 
@@ -144,7 +152,7 @@ func parseNodesP1(scanner *bufio.Scanner) NodeGraph {
 		node.right = rightNode
 
 		if category == Beginning {
-			graph.root = *node
+			startingNodes = append(startingNodes, node)
 		}
 	}
 
@@ -154,5 +162,5 @@ func parseNodesP1(scanner *bufio.Scanner) NodeGraph {
 	// 	fmt.Printf("%s: %+v left: %s, right: %s\n", key, n, n.left.label, n.right.label)
 	// }
 
-	return graph
+	return startingNodes
 }
