@@ -28,8 +28,8 @@ value of the original history should be
 	lower tier increments upper tier (0 added for free in bottom tier)
 */
 func main() {
-	fmt.Println("day 9 p 1")
-	// file_name := "example_input.txt" // expecting 114 (18, 28, 68)
+	fmt.Println("day 9 p 2")
+	// file_name := "example_input.txt" // expecting 2 (-3 0, 5)
 	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
@@ -109,17 +109,17 @@ func process(nums [][]int) int {
 
 		// extrapolate from diffs
 		// fmt.Printf("\t")
-		previousEndElement := 0
+		previousStartElement := 0
 		for i := len(diffs) - 1; i >= 0; i-- {
 			d := diffs[i]
-			endElement := d[len(d)-1]
+			startElement := d[0]
 			
-			newElement := endElement + previousEndElement
+			newElement := startElement - previousStartElement
 
-			previousEndElement = newElement
-			// fmt.Printf("%d,", previousEndElement)
+			previousStartElement = newElement
+			// fmt.Printf("%d,", previousStartElement)
 		}
-		extrapolatedValue := rootLine[len(rootLine)-1] + previousEndElement 
+		extrapolatedValue := rootLine[0] - previousStartElement 
 		// fmt.Printf("%d \n", extrapolatedValue)
 
 		sum += extrapolatedValue
