@@ -56,11 +56,11 @@ type Node struct {
 
 func main() {
 	fmt.Println("day 10 p 1")
-	file_name := "example_inputA.txt" // expecting 4 at point 3,3 (0,0 is top left)
+	// file_name := "example_inputA.txt" // expecting 4 at point 3,3 (0,0 is top left)
 	// file_name := "example_inputB.txt" // expecting 4 at point 3,3  (same as A, but with excess pipe)
 	// file_name := "example_inputC.txt" // expecting 8 at point 4,2
 	// file_name := "example_inputD.txt" // expecting 8 at point 4,2  (same as C, but with excess pipe)
-	// file_name := "input.txt"
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -69,23 +69,21 @@ func main() {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	// scanner.Scan()
-	// fmt.Println(scanner.Text())
 	startingNode := parse(scanner)
 	result := findFarthestDistance(startingNode)
 
-	fmt.Printf("fartherst distance: %d", result)
+	fmt.Printf("farthest distance: %d\n", result)
 }
 
-func parse(scanner *bufio.Scanner) Node {
-	startingNode := Node{nodeType: Empty}
+func parse(scanner *bufio.Scanner) *Node {
+	var startingNode *Node = nil
 
 	scanner.Scan()
 	currentLine := scanner.Text()
 	gridWidth := len(currentLine)
 
-	aboveNodes := make([]Node, 0, gridWidth)
-	currentNodes := make([]Node, 0, gridWidth)
+	aboveNodes := make([]*Node, 0, gridWidth)
+	currentNodes := make([]*Node, 0, gridWidth)
 
 	for i := 0; i < gridWidth; i++ {
 		n := Node{
@@ -93,16 +91,16 @@ func parse(scanner *bufio.Scanner) Node {
 			originalMarker: '.',
 			nodeType:       Empty,
 		}
-		aboveNodes = append(aboveNodes, n)
+		aboveNodes = append(aboveNodes, &n)
 	}
 
 	y := 0
 	for {
+		// fmt.Println(currentLine)
 		for x, c := range currentLine {
-
 			loc := Point{x, y}
-			aboveNode := aboveNodes[x]
-			leftNode := Node{nodeType: Empty}
+			var aboveNode = aboveNodes[x]
+			var leftNode *Node = nil
 			if x > 0 {
 				leftNode = currentNodes[x-1]
 			}
@@ -115,14 +113,18 @@ func parse(scanner *bufio.Scanner) Node {
 
 			ant := aboveNode.nodeType
 			aboveHasSouth := ant == Vertical || ant == SEBend || ant == SWBend || ant == Start
-			lnt := leftNode.nodeType
-			leftHasEast := lnt == Horizontal || lnt == NEBend || lnt == SEBend || lnt == Start
+
+			leftHasEast := false
+			if leftNode != nil {
+				lnt := leftNode.nodeType
+				leftHasEast = lnt == Horizontal || lnt == NEBend || lnt == SEBend || lnt == Start
+			}
 
 			switch c {
 			case '|':
 				n.nodeType = Vertical
 				if aboveHasSouth {
-					n.north = &aboveNode
+					n.north = aboveNode
 					aboveNode.south = &n
 				}
 			case '-':
@@ -134,7 +136,7 @@ func parse(scanner *bufio.Scanner) Node {
 			case 'L':
 				n.nodeType = NEBend
 				if aboveHasSouth {
-					n.north = &aboveNode
+					n.north = aboveNode
 					aboveNode.south = &n
 				}
 			case 'J':
@@ -144,7 +146,7 @@ func parse(scanner *bufio.Scanner) Node {
 					leftNode.east = &n
 				}
 				if aboveHasSouth {
-					n.north = &aboveNode
+					n.north = aboveNode
 					aboveNode.south = &n
 				}
 			case '7':
@@ -157,33 +159,40 @@ func parse(scanner *bufio.Scanner) Node {
 				n.nodeType = SEBend
 			case 'S':
 				n.nodeType = Start
-				startingNode = n
+				startingNode = &n
 				if leftHasEast {
 					n.west = &n
 					leftNode.east = &n
 				}
 				if aboveHasSouth {
-					n.north = &aboveNode
+					n.north = aboveNode
 					aboveNode.south = &n
 				}
 			}
 
-			currentNodes = append(currentNodes, n)
+			currentNodes = append(currentNodes, &n)
 		}
 
+		// for _, n := range currentNodes {
+		// 	fmt.Printf("%+v\n", n)
+		// }
+
 		// clear and swap lines
-		clear(aboveNodes)
-		temp := aboveNodes
+		temp := aboveNodes[:0]
 		aboveNodes = currentNodes
 		currentNodes = temp
 
 		y += 1
 		if !scanner.Scan() {
+			if scanner.Err() != nil {
+				log.Fatal(scanner.Err())
+			}
 			break
 		}
+		currentLine = scanner.Text()
 	}
 
-	if startingNode.nodeType == Empty {
+	if startingNode == nil {
 		log.Fatal("did not find starting node")
 	}
 	return startingNode
@@ -198,7 +207,8 @@ const (
 	West
 )
 
-func findFarthestDistance(startingNode Node) int {
+func findFarthestDistance(startingNode *Node) int {
+	// fmt.Printf("starting node %+v\n", startingNode)
 
 	var travelerA *Node = nil
 	var travelerB *Node = nil
@@ -208,6 +218,11 @@ func findFarthestDistance(startingNode Node) int {
 		startingNode.east,
 		startingNode.south,
 		startingNode.west,
+	}
+
+	// fmt.Printf("startingDirs %+v\n", startingDirections)
+	oppositeDir := func(d Dir) Dir {
+		return Dir((d + 2) % 4)
 	}
 
 	var lastDirTraveledA Dir
@@ -226,6 +241,7 @@ func findFarthestDistance(startingNode Node) int {
 			break
 		}
 	}
+	// fmt.Printf("A %+v | B %+v\n", travelerA, travelerB)
 
 	travel := func(start *Node, lastDirTraveled Dir) (*Node, Dir) {
 		directions := []*Node{
@@ -236,7 +252,7 @@ func findFarthestDistance(startingNode Node) int {
 		}
 
 		for i, n := range directions {
-			if i != int(lastDirTraveled) && n != nil {
+			if Dir(i) != oppositeDir(lastDirTraveled) && n != nil {
 				return n, Dir(i)
 			}
 		}
@@ -246,11 +262,21 @@ func findFarthestDistance(startingNode Node) int {
 	}
 
 	count := 1
-	for travelerA != travelerB {
+	// fmt.Println(count)
+	// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
+	// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
+	for {
+		count += 1
 		travelerA, lastDirTraveledA = travel(travelerA, lastDirTraveledA)
 		travelerB, lastDirTraveledB = travel(travelerB, lastDirTraveledB)
 
-		count += 0
+		// fmt.Println(count)
+		// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
+		// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
+
+		if travelerA == travelerB {
+			break
+		}
 	}
 
 	return count
