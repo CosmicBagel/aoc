@@ -189,6 +189,69 @@ func parse(scanner *bufio.Scanner) Node {
 	return startingNode
 }
 
+type Dir int
+
+const (
+	North Dir = iota
+	East
+	South
+	West
+)
+
 func findFarthestDistance(startingNode Node) int {
-	return 0
+
+	var travelerA *Node = nil
+	var travelerB *Node = nil
+
+	startingDirections := []*Node{
+		startingNode.north,
+		startingNode.east,
+		startingNode.south,
+		startingNode.west,
+	}
+
+	var lastDirTraveledA Dir
+	var lastDirTraveledB Dir
+	for i, n := range startingDirections {
+		if n != nil {
+			if travelerA == nil {
+				travelerA = n
+				lastDirTraveledA = Dir(i)
+			} else {
+				travelerB = n
+				lastDirTraveledB = Dir(i)
+			}
+		}
+		if travelerA != nil && travelerB != nil {
+			break
+		}
+	}
+
+	travel := func(start *Node, lastDirTraveled Dir) (*Node, Dir) {
+		directions := []*Node{
+			start.north,
+			start.east,
+			start.south,
+			start.west,
+		}
+
+		for i, n := range directions {
+			if i != int(lastDirTraveled) && n != nil {
+				return n, Dir(i)
+			}
+		}
+
+		log.Fatal("Failed to find valid direction (incomplete circle?)")
+		return nil, 0
+	}
+
+	count := 1
+	for travelerA != travelerB {
+		travelerA, lastDirTraveledA = travel(travelerA, lastDirTraveledA)
+		travelerB, lastDirTraveledB = travel(travelerB, lastDirTraveledB)
+
+		count += 0
+	}
+
+	return count
 }
