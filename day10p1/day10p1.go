@@ -59,7 +59,7 @@ func main() {
 	// file_name := "example_inputA.txt" // expecting 4 at point 3,3 (0,0 is top left)
 	// file_name := "example_inputB.txt" // expecting 4 at point 3,3  (same as A, but with excess pipe)
 	// file_name := "example_inputC.txt" // expecting 8 at point 4,2
-	// file_name := "example_inputD.txt" // expecting 8 at point 4,2  (same as C, but with excess pipe)
+	// file_name := "example_inputD.txt" // expecting 7 at point 4,2  (same as C, but with excess pipe)
 	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
@@ -130,7 +130,7 @@ func parse(scanner *bufio.Scanner) *Node {
 			case '-':
 				n.nodeType = Horizontal
 				if leftHasEast {
-					n.west = &n
+					n.west = leftNode 
 					leftNode.east = &n
 				}
 			case 'L':
@@ -142,7 +142,7 @@ func parse(scanner *bufio.Scanner) *Node {
 			case 'J':
 				n.nodeType = NWBend
 				if leftHasEast {
-					n.west = &n
+					n.west = leftNode
 					leftNode.east = &n
 				}
 				if aboveHasSouth {
@@ -152,16 +152,17 @@ func parse(scanner *bufio.Scanner) *Node {
 			case '7':
 				n.nodeType = SWBend
 				if leftHasEast {
-					n.west = &n
+					n.west = leftNode
 					leftNode.east = &n
 				}
 			case 'F':
 				n.nodeType = SEBend
+				// must be connected to by an east node or south node
 			case 'S':
 				n.nodeType = Start
 				startingNode = &n
 				if leftHasEast {
-					n.west = &n
+					n.west = leftNode
 					leftNode.east = &n
 				}
 				if aboveHasSouth {
@@ -207,8 +208,49 @@ const (
 	West
 )
 
+func dirToName(d Dir) string {
+	name := "West"
+	switch d {
+	case North:
+		name = "North"
+	case East:
+		name = "East"
+	case South:
+		name = "South"
+	}
+
+	return name
+}
+
 func findFarthestDistance(startingNode *Node) int {
 	// fmt.Printf("starting node %+v\n", startingNode)
+
+	// logNode := func(n Node) {
+	// 	fmt.Printf("\tA: %s %+v\n", string(n.originalMarker), n.location)
+	//
+	// 	fmt.Printf("\t\t")
+	// 	if n.north != nil {
+	// 		fmt.Printf("N %s ", string(n.north.originalMarker))
+	// 	} else {
+	// 		fmt.Print("N x ")
+	// 	}
+	// 	if n.east != nil {
+	// 		fmt.Printf("E %s ", string(n.east.originalMarker))
+	// 	} else {
+	// 		fmt.Print("E x ")
+	// 	}
+	// 	if n.south != nil {
+	// 		fmt.Printf("S %s ", string(n.south.originalMarker))
+	// 	} else {
+	// 		fmt.Print("S x ")
+	// 	}
+	// 	if n.west != nil {
+	// 		fmt.Printf("W %s ", string(n.west.originalMarker))
+	// 	} else {
+	// 		fmt.Print("W x ")
+	// 	}
+	// 	fmt.Print("\n")
+	// }
 
 	var travelerA *Node = nil
 	var travelerB *Node = nil
@@ -227,14 +269,19 @@ func findFarthestDistance(startingNode *Node) int {
 
 	var lastDirTraveledA Dir
 	var lastDirTraveledB Dir
+
+	// fmt.Println("0")
+	// logNode(*startingNode)
 	for i, n := range startingDirections {
 		if n != nil {
 			if travelerA == nil {
 				travelerA = n
 				lastDirTraveledA = Dir(i)
+				// fmt.Printf("\t\tA taking %s\n", dirToName(lastDirTraveledA))
 			} else {
 				travelerB = n
 				lastDirTraveledB = Dir(i)
+				// fmt.Printf("\t\tB taking %s\n", dirToName(lastDirTraveledB))
 			}
 		}
 		if travelerA != nil && travelerB != nil {
@@ -251,8 +298,9 @@ func findFarthestDistance(startingNode *Node) int {
 			start.west,
 		}
 
+		entryPoint := oppositeDir(lastDirTraveled)
 		for i, n := range directions {
-			if Dir(i) != oppositeDir(lastDirTraveled) && n != nil {
+			if Dir(i) != entryPoint && n != nil {
 				return n, Dir(i)
 			}
 		}
@@ -262,22 +310,35 @@ func findFarthestDistance(startingNode *Node) int {
 	}
 
 	count := 1
-	// fmt.Println(count)
-	// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
-	// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
 	for {
-		count += 1
-		travelerA, lastDirTraveledA = travel(travelerA, lastDirTraveledA)
-		travelerB, lastDirTraveledB = travel(travelerB, lastDirTraveledB)
-
 		// fmt.Println(count)
-		// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
-		// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
 
+		// logNode(*travelerA)
+		travelerA, lastDirTraveledA = travel(travelerA, lastDirTraveledA)
+		// fmt.Printf("\t\tA taking %s\n", dirToName(lastDirTraveledA))
+
+		/////
+
+		// logNode(*travelerB)
+		travelerB, lastDirTraveledB = travel(travelerB, lastDirTraveledB)
+		// fmt.Printf("\t\tB taking %s\n", dirToName(lastDirTraveledB))
+
+		/////
+
+		count += 1
 		if travelerA == travelerB {
 			break
 		}
+
 	}
+	// fmt.Println(count)
+	// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
+	// fmt.Printf("\t\tN %v E %v S %v W %v\n",
+	// 	travelerA.north != nil, travelerA.east != nil, travelerA.south != nil, travelerA.west != nil)
+	//
+	// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
+	// fmt.Printf("\t\tN %v E %v S %v W %v\n",
+	// 	travelerB.north != nil, travelerB.east != nil, travelerB.south != nil, travelerB.west != nil)
 
 	return count
 }
