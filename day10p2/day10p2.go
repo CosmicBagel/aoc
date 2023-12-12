@@ -109,9 +109,17 @@ func (g *Grid) draw() {
 	}
 }
 
+func (g *Grid) boundsCheck(p Point) bool {
+	if p.X < 0 || p.X >= g.width ||
+		p.Y < 0 || p.Y >= g.height {
+		return false
+	}
+	return true
+}
+
 func main() {
 	fmt.Println("day 10 p 2")
-	file_name := "example_inputA.txt" // expecting 4
+	// file_name := "example_inputA.txt" // expecting 4
 	// file_name := "example_inputB.txt" // expecting 4
 	// file_name := "example_inputC.txt" // expecting 8
 	// file_name := "example_inputD.txt" // expecting 10
@@ -119,7 +127,7 @@ func main() {
 	// file_name := "example_inputF.txt" // expecting 1
 	// file_name := "example_inputG.txt" // expecting 1
 	// file_name := "example_inputH.txt" // expecting 1
-	// file_name := "input.txt"
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -133,9 +141,9 @@ func main() {
 	grid := makeGrid(gridWidth, gridHeight)
 	writePathToGrid(startingNode, grid)
 
-	grid.draw()
+	// grid.draw()
 	result := findInnerTileCount(startingNode, grid)
-	grid.draw()
+	// grid.draw()
 	// result := findFarthestDistance(startingNode)
 
 	fmt.Printf("enclosed tiles: %d\n", result)
@@ -336,124 +344,6 @@ func makeTravelFunc(start *Node) func() (*Node, Dir) {
 	}
 }
 
-func findFarthestDistance(startingNode *Node) int {
-	// fmt.Printf("starting node %+v\n", startingNode)
-
-	// logNode := func(n Node) {
-	// 	fmt.Printf("\tA: %s %+v\n", string(n.originalMarker), n.location)
-	//
-	// 	fmt.Printf("\t\t")
-	// 	if n.north != nil {
-	// 		fmt.Printf("N %s ", string(n.north.originalMarker))
-	// 	} else {
-	// 		fmt.Print("N x ")
-	// 	}
-	// 	if n.east != nil {
-	// 		fmt.Printf("E %s ", string(n.east.originalMarker))
-	// 	} else {
-	// 		fmt.Print("E x ")
-	// 	}
-	// 	if n.south != nil {
-	// 		fmt.Printf("S %s ", string(n.south.originalMarker))
-	// 	} else {
-	// 		fmt.Print("S x ")
-	// 	}
-	// 	if n.west != nil {
-	// 		fmt.Printf("W %s ", string(n.west.originalMarker))
-	// 	} else {
-	// 		fmt.Print("W x ")
-	// 	}
-	// 	fmt.Print("\n")
-	// }
-
-	var travelerA *Node = nil
-	var travelerB *Node = nil
-
-	startingDirections := []*Node{
-		startingNode.north,
-		startingNode.east,
-		startingNode.south,
-		startingNode.west,
-	}
-
-	// fmt.Printf("startingDirs %+v\n", startingDirections)
-
-	var lastDirTraveledA Dir
-	var lastDirTraveledB Dir
-
-	// fmt.Println("0")
-	// logNode(*startingNode)
-	for i, n := range startingDirections {
-		if n != nil {
-			if travelerA == nil {
-				travelerA = n
-				lastDirTraveledA = Dir(i)
-				// fmt.Printf("\t\tA taking %s\n", dirToName(lastDirTraveledA))
-			} else {
-				travelerB = n
-				lastDirTraveledB = Dir(i)
-				// fmt.Printf("\t\tB taking %s\n", dirToName(lastDirTraveledB))
-			}
-		}
-		if travelerA != nil && travelerB != nil {
-			break
-		}
-	}
-	// fmt.Printf("A %+v | B %+v\n", travelerA, travelerB)
-
-	travel := func(start *Node, lastDirTraveled Dir) (*Node, Dir) {
-		directions := []*Node{
-			start.north,
-			start.east,
-			start.south,
-			start.west,
-		}
-
-		entryPoint := lastDirTraveled.oppositeDir()
-		for i, n := range directions {
-			if Dir(i) != entryPoint && n != nil {
-				return n, Dir(i)
-			}
-		}
-
-		log.Fatal("Failed to find valid direction (incomplete circle?)")
-		return nil, 0
-	}
-
-	count := 1
-	for {
-		// fmt.Println(count)
-
-		// logNode(*travelerA)
-		travelerA, lastDirTraveledA = travel(travelerA, lastDirTraveledA)
-		// fmt.Printf("\t\tA taking %s\n", dirToName(lastDirTraveledA))
-
-		/////
-
-		// logNode(*travelerB)
-		travelerB, lastDirTraveledB = travel(travelerB, lastDirTraveledB)
-		// fmt.Printf("\t\tB taking %s\n", dirToName(lastDirTraveledB))
-
-		/////
-
-		count += 1
-		if travelerA == travelerB {
-			break
-		}
-
-	}
-	// fmt.Println(count)
-	// fmt.Printf("\tA: %s %+v\n", string(travelerA.originalMarker), travelerA.location)
-	// fmt.Printf("\t\tN %v E %v S %v W %v\n",
-	// 	travelerA.north != nil, travelerA.east != nil, travelerA.south != nil, travelerA.west != nil)
-	//
-	// fmt.Printf("\tB: %s %+v\n", string(travelerB.originalMarker), travelerB.location)
-	// fmt.Printf("\t\tN %v E %v S %v W %v\n",
-	// 	travelerB.north != nil, travelerB.east != nil, travelerB.south != nil, travelerB.west != nil)
-
-	return count
-}
-
 func findInnerTileCount(startingNode *Node, grid *Grid) int {
 
 	// step 1 find left most location (or one of them)
@@ -461,10 +351,13 @@ func findInnerTileCount(startingNode *Node, grid *Grid) int {
 	// step 2, trace from point, noting orientation as you go
 
 	traveler := makeTravelFunc(startingNode)
-	lowestX := startingNode.location.X
-	leftestNode := startingNode
+	secondNode, secondDir := traveler()
+	lowestX := secondNode.location.X
+	leftestNode := secondNode
 
-	lastDirAtLeftestNode := North
+	lastDirAtLeftestNode := secondDir
+
+	// fmt.Printf("second node %+v\n", secondNode)
 
 	// travel whole loop once to find leftestNode
 	for {
@@ -481,15 +374,15 @@ func findInnerTileCount(startingNode *Node, grid *Grid) int {
 		}
 	}
 
-	traveler = makeTravelFunc(leftestNode)
-	node := leftestNode
-	lastDir := lastDirAtLeftestNode
+	traveler = makeTravelFunc(startingNode)
+	node, lastDir := traveler()
 
 	// flow direction is how we determine what side of point is inside
-	flowClockWise := true // North or West
-	if lastDir == South || lastDir == East {
-		flowClockWise = false
-	}
+	flowClockWise := determineFlow(leftestNode, lastDirAtLeftestNode)
+
+	// fmt.Printf("flow clockwise %v\n", flowClockWise)
+	// fmt.Printf("leftest node loc %+v\n", leftestNode.location)
+	// fmt.Printf("last dir %s\n", dirToName(lastDirAtLeftestNode))
 
 	foundCount := 0
 	for {
@@ -499,12 +392,34 @@ func findInnerTileCount(startingNode *Node, grid *Grid) int {
 		}
 
 		node, lastDir = traveler()
-		if node == leftestNode {
+		if node == startingNode {
 			break
 		}
 	}
 
 	return foundCount
+}
+
+func determineFlow(leftestNode *Node, lastDir Dir) bool {
+	nodeType := leftestNode.nodeType
+	if nodeType == Start {
+		nodeType = detectStartNodeType(leftestNode)
+	}
+
+	// fmt.Printf("node type %d\n", nodeType)
+	// fmt.Printf("original marker %s\n", string(leftestNode.originalMarker))
+
+	switch nodeType {
+	case Vertical: // |
+		return lastDir == North
+	case NEBend: // L
+		return lastDir == West
+	case SEBend: // F
+		return lastDir == North
+	}
+
+	log.Fatal("impossible nodetype at leftmost position")
+	return false
 }
 
 func detectStartNodeType(startingNode *Node) NodeType {
@@ -644,12 +559,61 @@ func getInnerPointsForNode(node *Node, lastDirTraveled Dir, flowClockWise bool) 
 }
 
 func floodSearch(grid *Grid, startingPoint Point) int {
+	if !grid.boundsCheck(startingPoint) {
+		return 0
+	}
 	if grid.getPoint(startingPoint) != '.' {
 		return 0
 	}
-	found := 1
-	grid.setPoint(startingPoint, 'I')
-	// search for realz
-	// log.Fatal("not implemented")
+
+	/*Flood-fill (node):
+	1. If node is not Inside return.
+	2. Set the node
+	3. Perform Flood-fill one step to the south of node.
+	4. Perform Flood-fill one step to the north of node
+	5. Perform Flood-fill one step to the west of node
+	6. Perform Flood-fill one step to the east of node
+	7. Return.
+	*/
+
+	found := 0
+	// grid.setPoint(startingPoint, 'I')
+	// found += 1
+
+	first := true
+	stack := make([]Point, 0)
+	stack = append(stack, startingPoint)
+	for len(stack) > 0 {
+		// pop point from top of stack
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		if !grid.boundsCheck(p) {
+			continue
+		}
+
+		if grid.getPoint(p) != '.' {
+			continue
+		}
+
+		if first {
+			grid.setPoint(p, 'A')
+			first = false
+		} else {
+			grid.setPoint(p, 'I')
+		}
+		found += 1
+
+		nLoc := Point{p.X, p.Y - 1}
+		eLoc := Point{p.X + 1, p.Y}
+		sLoc := Point{p.X, p.Y + 1}
+		wLoc := Point{p.X - 1, p.Y}
+
+		stack = append(stack, nLoc)
+		stack = append(stack, eLoc)
+		stack = append(stack, sLoc)
+		stack = append(stack, wLoc)
+	}
+
 	return found
 }
