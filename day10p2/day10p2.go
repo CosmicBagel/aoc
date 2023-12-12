@@ -105,19 +105,16 @@ func (g *Grid) setPoint(p Point, b byte) {
 func (g *Grid) draw() {
 	fmt.Printf("printing %d by %d grid\n", g.width, g.height)
 	for y := 0; y < g.height; y++ {
-		for x := 0; x < g.width; x++ {
-			fmt.Printf("%s", string(g.getPoint(Point{x, y})))
-		}
-		fmt.Print("\n")
+		fmt.Printf("%s\n", string(g.elements[y]))
 	}
 }
 
 func main() {
 	fmt.Println("day 10 p 2")
-	// file_name := "example_inputA.txt" // expecting 4
+	file_name := "example_inputA.txt" // expecting 4
 	// file_name := "example_inputB.txt" // expecting 4
 	// file_name := "example_inputC.txt" // expecting 8
-	file_name := "example_inputD.txt" // expecting 10
+	// file_name := "example_inputD.txt" // expecting 10
 	// file_name := "example_inputE.txt" // expecting 1
 	// file_name := "example_inputF.txt" // expecting 1
 	// file_name := "example_inputG.txt" // expecting 1
@@ -132,13 +129,16 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	startingNode, gridWidth, gridHeight := parse(scanner)
+	//blank canvas, then add just to path to it
 	grid := makeGrid(gridWidth, gridHeight)
 	writePathToGrid(startingNode, grid)
 
 	grid.draw()
+	result := findInnerTileCount(startingNode, grid)
+	grid.draw()
 	// result := findFarthestDistance(startingNode)
 
-	// fmt.Printf("enclosed tiles: %d\n", result)
+	fmt.Printf("enclosed tiles: %d\n", result)
 }
 
 func parse(scanner *bufio.Scanner) (*Node, int, int) {
@@ -298,7 +298,7 @@ func writePathToGrid(startingNode *Node, grid *Grid) {
 	grid.setPoint(startingNode.location, byte(startingNode.originalMarker))
 
 	for {
-		n := traveler()
+		n, _ := traveler()
 
 		if n.originalMarker == 'S' {
 			break
@@ -310,11 +310,11 @@ func writePathToGrid(startingNode *Node, grid *Grid) {
 
 }
 
-func makeTravelFunc(start *Node) func() *Node {
+func makeTravelFunc(start *Node) func() (*Node, Dir) {
 	lastDirTraveled := North
 	currentNode := start
 
-	return func() *Node {
+	return func() (*Node, Dir) {
 		directions := []*Node{
 			currentNode.north,
 			currentNode.east,
@@ -327,12 +327,12 @@ func makeTravelFunc(start *Node) func() *Node {
 			if Dir(i) != entryPoint && n != nil {
 				lastDirTraveled = Dir(i)
 				currentNode = n
-				return currentNode
+				return currentNode, lastDirTraveled
 			}
 		}
 
 		log.Fatal("Failed to find valid direction (incomplete circle?)")
-		return nil
+		return nil, North
 	}
 }
 
@@ -452,4 +452,204 @@ func findFarthestDistance(startingNode *Node) int {
 	// 	travelerB.north != nil, travelerB.east != nil, travelerB.south != nil, travelerB.west != nil)
 
 	return count
+}
+
+func findInnerTileCount(startingNode *Node, grid *Grid) int {
+
+	// step 1 find left most location (or one of them)
+	//	left side is known outside, right is known inside
+	// step 2, trace from point, noting orientation as you go
+
+	traveler := makeTravelFunc(startingNode)
+	lowestX := startingNode.location.X
+	leftestNode := startingNode
+
+	lastDirAtLeftestNode := North
+
+	// travel whole loop once to find leftestNode
+	for {
+		n, d := traveler()
+
+		if n.location.X < lowestX {
+			leftestNode = n
+			lowestX = n.location.X
+			lastDirAtLeftestNode = d
+		}
+
+		if n.originalMarker == 'S' {
+			break
+		}
+	}
+
+	traveler = makeTravelFunc(leftestNode)
+	node := leftestNode
+	lastDir := lastDirAtLeftestNode
+
+	// flow direction is how we determine what side of point is inside
+	flowClockWise := true // North or West
+	if lastDir == South || lastDir == East {
+		flowClockWise = false
+	}
+
+	foundCount := 0
+	for {
+		points := getInnerPointsForNode(node, lastDir, flowClockWise)
+		for _, p := range points {
+			foundCount += floodSearch(grid, p)
+		}
+
+		node, lastDir = traveler()
+		if node == leftestNode {
+			break
+		}
+	}
+
+	return foundCount
+}
+
+func detectStartNodeType(startingNode *Node) NodeType {
+	n := startingNode.north != nil
+	e := startingNode.east != nil
+	s := startingNode.south != nil
+	w := startingNode.west != nil
+
+	if n && s {
+		return Vertical
+	} else if e && w {
+		return Horizontal
+	} else if n && e {
+		return NEBend
+	} else if n && w {
+		return NWBend
+	} else if s && e {
+		return SEBend
+	} else {
+		return SWBend
+	}
+}
+
+func getInnerPointsForNode(node *Node, lastDirTraveled Dir, flowClockWise bool) []Point {
+	points := make([]Point, 0, 2)
+
+	// imagine your hands are on a steering wheel, thumbs sticking out
+	// left hand thumb points clockwise, right hand points counter clockwise
+	// your palm always faces towards the center of the steering wheel
+	// by knowing the direction we're moving we know where the center is
+	// left hand -> clockwise
+	// right hand -> counter clockwise
+	// direction of thumb determined by lastDirTraveled
+	// direction of palm indicates inner side of point
+
+	nodeType := node.nodeType
+	if nodeType == Start {
+		nodeType = detectStartNodeType(node)
+	}
+
+	northLoc := Point{node.location.X, node.location.Y - 1}
+	eastLoc := Point{node.location.X + 1, node.location.Y}
+	southLoc := Point{node.location.X, node.location.Y + 1}
+	westLoc := Point{node.location.X - 1, node.location.Y}
+
+	// northEastLoc := Point{node.location.X + 1, node.location.Y - 1}
+	// northWestLoc := Point{node.location.X - 1, node.location.Y - 1}
+	// southEastLoc := Point{node.location.X + 1, node.location.Y + 1}
+	// southWestLoc := Point{node.location.X - 1, node.location.Y + 1}
+
+	switch nodeType {
+	case Horizontal: // -
+		if flowClockWise {
+			if lastDirTraveled == East {
+				points = append(points, southLoc)
+			} else {
+				points = append(points, northLoc)
+			}
+		} else {
+			if lastDirTraveled == East {
+				points = append(points, northLoc)
+			} else {
+				points = append(points, southLoc)
+			}
+		}
+	case Vertical: // |
+		if flowClockWise {
+			if lastDirTraveled == North {
+				points = append(points, eastLoc)
+			} else {
+				points = append(points, westLoc)
+			}
+		} else {
+			if lastDirTraveled == North {
+				points = append(points, westLoc)
+			} else {
+				points = append(points, eastLoc)
+			}
+		}
+	case NEBend: // L
+		if flowClockWise {
+			if lastDirTraveled == South {
+				points = append(points, southLoc)
+				points = append(points, westLoc)
+				// points = append(points, southWestLoc)
+			}
+			// no points added if moving west
+		} else {
+			if lastDirTraveled == West {
+				points = append(points, southLoc)
+				points = append(points, westLoc)
+				// points = append(points, southWestLoc)
+			}
+			// no points added if moving south
+		}
+	case NWBend: // J
+		if flowClockWise {
+			if lastDirTraveled == East {
+				points = append(points, southLoc)
+				points = append(points, eastLoc)
+				// points = append(points, southEastLoc)
+			}
+		} else {
+			if lastDirTraveled == South {
+				points = append(points, southLoc)
+				points = append(points, eastLoc)
+				// points = append(points, southEastLoc)
+			}
+		}
+	case SEBend: // F
+		if flowClockWise {
+			if lastDirTraveled == West {
+				points = append(points, northLoc)
+				points = append(points, westLoc)
+			}
+		} else {
+			if lastDirTraveled == North {
+				points = append(points, northLoc)
+				points = append(points, westLoc)
+			}
+		}
+	case SWBend: // 7
+		if flowClockWise {
+			if lastDirTraveled == North {
+				points = append(points, northLoc)
+				points = append(points, eastLoc)
+			}
+		} else {
+			if lastDirTraveled == East {
+				points = append(points, northLoc)
+				points = append(points, eastLoc)
+			}
+		}
+	}
+
+	return points
+}
+
+func floodSearch(grid *Grid, startingPoint Point) int {
+	if grid.getPoint(startingPoint) != '.' {
+		return 0
+	}
+	found := 1
+	grid.setPoint(startingPoint, 'I')
+	// search for realz
+	// log.Fatal("not implemented")
+	return found
 }
