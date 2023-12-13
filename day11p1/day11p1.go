@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
+	"math/big"
 	"os"
 )
 
@@ -26,7 +28,7 @@ func (d MapData) draw() {
 		grid[gp.y][gp.x] = '#'
 	}
 
-	fmt.Printf("displaying galaxy map\n")
+	fmt.Printf("displaying  galaxy map\n")
 	for y := 0; y < d.height; y++ {
 		fmt.Printf("%s\n", string(grid[y]))
 	}
@@ -44,8 +46,8 @@ type Pair struct {
 
 func main() {
 	fmt.Println("day 11 p 1")
-	file_name := "example_input.txt" // expecting 374
-	// file_name := "input.txt"
+	// file_name := "example_input.txt" // expecting 374
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -55,9 +57,12 @@ func main() {
 
 	scanner := bufio.NewScanner(file)
 	mapData := parse(scanner)
-	mapData.draw()
+	// mapData.draw()
+	pairs := enumeratePairs(mapData)
 
 	// sum of shortest path between each pair of galaxies
+	sum := findShortestPathForAll(pairs)
+	fmt.Printf("sum of shortest paths: %d\n", sum)
 }
 
 func parse(scanner *bufio.Scanner) MapData {
@@ -79,7 +84,7 @@ func parse(scanner *bufio.Scanner) MapData {
 	y := 0
 	for {
 		rowEmpty := true
-		fmt.Printf("%s\n", scanner.Bytes())
+		// fmt.Printf("%s\n", scanner.Bytes())
 		for x, b := range scanner.Bytes() {
 			if b == '#' {
 				galaxies = append(galaxies, Point{x, y})
@@ -128,11 +133,12 @@ func enumeratePairs(mapData MapData) []Pair {
 	// k!(n-k)!
 	// where n is the number of objects (galaxies) and k is how many are chosen (1 pair = 2)
 
-	galaxyCount := len(mapData.galaxies)
-	expectedCount := factorial(galaxyCount) / (2 * factorial(galaxyCount-2))
+	galaxyCount := int64(len(mapData.galaxies))
+	// fmt.Printf("galaxyCount %d\n", galaxyCount)
 
-	fmt.Printf("expectedCount %d\n", expectedCount)
-	pairs := make([]Pair, 0, expectedCount)
+	// expectedCount := calcExpectedCount(galaxyCount)
+	// fmt.Printf("expectedCount %d\n", expectedCount)
+	pairs := make([]Pair, 0)
 
 	for i, ga := range mapData.galaxies[:galaxyCount-1] {
 		for _, gb := range mapData.galaxies[i+1:] {
@@ -154,12 +160,39 @@ func enumeratePairs(mapData MapData) []Pair {
 	return pairs
 }
 
-func factorial(n int) int {
-	f := n
-	for f > 1 {
-		f -= 1
-		n *= f
+func calcExpectedCount(n int64) int64 {
+	two := big.NewInt(2)
+	numerator := factorial(n)
+	denominator := factorial(n - 2)
+	denominator = denominator.Mul(denominator, two)
+	expectedCount := numerator.Div(numerator, denominator)
+
+	return expectedCount.Int64()
+}
+
+func factorial(in int64) *big.Int {
+	n := big.NewInt(in)
+	f := big.NewInt(in)
+	one := big.NewInt(1)
+	negOne := big.NewInt(-1)
+	for f.Cmp(one) == 1 {
+		f = f.Sub(f, negOne)
+		n = n.Mul(f, n)
 	}
 
 	return n
+}
+
+func findShortestPathForAll(pairs []Pair) int {
+	sum := 0
+	for _, pair := range pairs {
+		diff := Point{
+			int(math.Abs(float64(pair.b.x - pair.a.x))),
+			int(math.Abs(float64(pair.b.y - pair.a.y))),
+		}
+
+		sum += diff.x + diff.y
+	}
+
+	return sum
 }
