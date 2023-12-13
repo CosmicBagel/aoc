@@ -46,8 +46,8 @@ type Pair struct {
 
 func main() {
 	fmt.Println("day 11 p 2")
-	file_name := "example_input.txt" // expecting 1030
-	// file_name := "input.txt"
+	// file_name := "example_input.txt" // expecting 1030
+	file_name := "input.txt"
 
 	file, err := os.Open(file_name)
 	if err != nil {
@@ -70,7 +70,7 @@ func parse(scanner *bufio.Scanner) MapData {
 
 	galaxies := make([]Point, 0)
 
-	expansionRate := int64(10)
+	expansionRate := int64(999999)
 
 	scanner.Scan()
 	currentLine := scanner.Text()
