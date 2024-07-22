@@ -15,7 +15,7 @@ pub fn main() !void {
     try prefixTree.insert("pq");
     try prefixTree.insert("xy");
 
-    var file = try std.fs.cwd().openFile("input.txt", .{ .mode = std.fs.File.OpenMode.read_only });
+    var file = try std.fs.cwd().openFile("testInput.txt", .{ .mode = std.fs.File.OpenMode.read_only });
     defer file.close();
 
     var bufferedReader = std.io.bufferedReader(file.reader());
@@ -66,7 +66,7 @@ fn processLine(line: []u8) bool {
 
     for (0..line.len - 2) |i| {
         const chars = line[i .. i + 1];
-        if (!prefixTree.search(chars)) {
+        if (prefixTree.search(chars)) {
             return false;
         }
     }
@@ -75,6 +75,7 @@ fn processLine(line: []u8) bool {
 }
 
 const PTNode = struct {
+    //26 letters in (ascii supported) english alphabet
     children: [26]?*PTNode,
     terminal: bool,
 };
@@ -85,6 +86,7 @@ const PrefixTree = struct {
 
     fn create(allocator: std.mem.Allocator) !PrefixTree {
         const n = try allocator.create(PTNode);
+        n.* = std.mem.zeroInit(PTNode, .{});
         return PrefixTree{ .root = n, .alloc = allocator };
     }
 
@@ -102,15 +104,12 @@ const PrefixTree = struct {
     }
 
     fn search(self: PrefixTree, string: []const u8) bool {
-        std.debug.print("search start\n", .{});
         var n = self.root;
         for (string) |c| {
             // check if uppercase, then subtract that
             const i = if (c < 0x61) c - 0x41 else c - 0x61;
-            std.debug.print("{c} -> {d}\n", .{c, i});
             if (n.children[i] != null) {
                 n = n.children[i].?;
-                std.debug.print("node found\n", .{});
             } else {
                 return false;
             }
