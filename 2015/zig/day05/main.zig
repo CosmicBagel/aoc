@@ -1,7 +1,19 @@
 const std = @import("std");
 
+var ptBuffer = [_]u8{0} ** 4096;
+var ptAlloc = std.heap.FixedBufferAllocator.init(&ptBuffer);
+var prefixTree: *PrefixTree = undefined;
+
 pub fn main() !void {
     std.debug.print("day05\n", .{});
+
+    var pt = try PrefixTree.create(ptAlloc.allocator());
+    prefixTree = &pt;
+    // bad strings ab, cd, pq, or xy
+    try prefixTree.insert("ab");
+    try prefixTree.insert("cd");
+    try prefixTree.insert("pq");
+    try prefixTree.insert("xy");
 
     var file = try std.fs.cwd().openFile("input.txt", .{ .mode = std.fs.File.OpenMode.read_only });
     defer file.close();
@@ -9,16 +21,16 @@ pub fn main() !void {
     var bufferedReader = std.io.bufferedReader(file.reader());
     var reader = bufferedReader.reader();
 
-    var good_count: u32 = 0;
+    var goodCount: u32 = 0;
 
     var buffer = [_]u8{0} ** 512;
     while (try reader.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
         if (processLine(line)) {
-            good_count += 1;
+            goodCount += 1;
         }
     }
 
-    std.debug.print("{d}\n", .{good_count});
+    std.debug.print("{d}\n", .{goodCount});
 }
 
 fn processLine(line: []u8) bool {
@@ -29,6 +41,7 @@ fn processLine(line: []u8) bool {
             'a', 'e', 'i', 'o', 'u' => {
                 vowelCount += 1;
             },
+            else => {},
         }
     }
     if (vowelCount < 3) {
@@ -51,7 +64,58 @@ fn processLine(line: []u8) bool {
 
     // It does not contain the strings ab, cd, pq, or xy, even if they are part of one of the other requirements.
 
-
+    for (0..line.len - 2) |i| {
+        const chars = line[i .. i + 1];
+        if (!prefixTree.search(chars)) {
+            return false;
+        }
+    }
 
     return true;
 }
+
+const PTNode = struct {
+    children: [26]?*PTNode,
+    terminal: bool,
+};
+
+const PrefixTree = struct {
+    root: *PTNode,
+    alloc: std.mem.Allocator,
+
+    fn create(allocator: std.mem.Allocator) !PrefixTree {
+        const n = try allocator.create(PTNode);
+        return PrefixTree{ .root = n, .alloc = allocator };
+    }
+
+    fn insert(self: PrefixTree, string: []const u8) !void {
+        var n = self.root;
+        for (string) |c| {
+            // check if uppercase, then subtract that
+            const i = if (c < 0x61) c - 0x41 else c - 0x61;
+            const next = try self.alloc.create(PTNode);
+            next.* = std.mem.zeroInit(PTNode, .{});
+            n.children[i] = next;
+            n = next;
+        }
+        n.terminal = true;
+    }
+
+    fn search(self: PrefixTree, string: []const u8) bool {
+        std.debug.print("search start\n", .{});
+        var n = self.root;
+        for (string) |c| {
+            // check if uppercase, then subtract that
+            const i = if (c < 0x61) c - 0x41 else c - 0x61;
+            std.debug.print("{c} -> {d}\n", .{c, i});
+            if (n.children[i] != null) {
+                n = n.children[i].?;
+                std.debug.print("node found\n", .{});
+            } else {
+                return false;
+            }
+        }
+
+        return (n.terminal);
+    }
+};
