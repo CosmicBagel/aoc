@@ -15,7 +15,7 @@ pub fn main() !void {
     try prefixTree.insert("pq");
     try prefixTree.insert("xy");
 
-    var file = try std.fs.cwd().openFile("testInput.txt", .{ .mode = std.fs.File.OpenMode.read_only });
+    var file = try std.fs.cwd().openFile("input.txt", .{ .mode = std.fs.File.OpenMode.read_only });
     defer file.close();
 
     var bufferedReader = std.io.bufferedReader(file.reader());
@@ -65,7 +65,7 @@ fn processLine(line: []u8) bool {
     // It does not contain the strings ab, cd, pq, or xy, even if they are part of one of the other requirements.
 
     for (0..line.len - 2) |i| {
-        const chars = line[i .. i + 1];
+        const chars = line[i .. i + 2];
         if (prefixTree.search(chars)) {
             return false;
         }
@@ -115,6 +115,6 @@ const PrefixTree = struct {
             }
         }
 
-        return (n.terminal);
+        return n.terminal;
     }
 };
